@@ -195,22 +195,28 @@ with tab1:
         st.subheader(f"Activity Distribution ({period_type.capitalize()})")
         
         if activity_distribution:
-            fig = create_activity_pie_chart(activity_distribution)
-            if fig:
-                st.pyplot(fig)
+            # Create two columns for chart and table
+            col1, col2 = st.columns([1, 1])
             
-            # Show the data in a table
-            st.subheader("Activity Details")
-            activity_data = []
-            for activity, minutes in activity_distribution.items():
-                activity_data.append({
-                    "Activity": activity,
-                    "Time (min)": round(minutes, 1),
-                    "Percentage": round(minutes / total_focus_time * 100, 1) if total_focus_time > 0 else 0
-                })
+            # Column 1: Pie Chart
+            with col1:
+                fig = create_activity_pie_chart(activity_distribution)
+                if fig:
+                    st.pyplot(fig)
             
-            activity_df = pd.DataFrame(activity_data)
-            st.dataframe(activity_df, use_container_width=True)
+            # Column 2: Activity Details Table
+            with col2:
+                st.subheader("Activity Details")
+                activity_data = []
+                for activity, minutes in activity_distribution.items():
+                    activity_data.append({
+                        "Activity": activity,
+                        "Time (min)": round(minutes, 1),
+                        "Percentage": round(minutes / total_focus_time * 100, 1) if total_focus_time > 0 else 0
+                    })
+                
+                activity_df = pd.DataFrame(activity_data)
+                st.dataframe(activity_df, use_container_width=True)
         else:
             st.info("No activities recorded for this period.")
     
@@ -239,7 +245,7 @@ with tab2:
     st.title("🎯 Focus Time")
     
     # Activity type selection
-    activity_types = ["Work", "Study", "Class"]
+    activity_types = ["Work", "Study", "Class", "Other"]
     selected_activity = st.selectbox(
         "Select activity type:",
         options=activity_types,
