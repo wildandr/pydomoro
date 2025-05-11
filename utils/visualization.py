@@ -102,7 +102,7 @@ def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
             focus_pct = (focus_minutes / total_minutes) * 100
             nonfocus_pct = (nonfocus_minutes / total_minutes) * 100
             
-            labels = ['Focus', 'Non-Focus']
+            labels = ['Focus', 'non']
             sizes = [focus_minutes, nonfocus_minutes]
             
             ax2.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, 
@@ -111,7 +111,7 @@ def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
             ax2.set_title('Today\'s Time Usage')
             
             # Add text with actual minutes
-            ax2.text(0, -1.2, f'Focus: {int(focus_minutes)} min | Non-Focus: {int(nonfocus_minutes)} min', 
+            ax2.text(0, -1.2, f'Focus: {int(focus_minutes)} min | non: {int(nonfocus_minutes)} min', 
                      horizontalalignment='center', fontsize=9)
     
     plt.tight_layout()
