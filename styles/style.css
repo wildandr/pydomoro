@@ -1,0 +1,111 @@
+/* Custom styling for PyDomoro app */
+
+/* Main container */
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Headers */
+h1 {
+    color: #1E88E5;
+    font-weight: 700;
+}
+
+h2 {
+    color: #1E88E5;
+    font-weight: 600;
+}
+
+h3 {
+    color: #1E88E5;
+    font-weight: 500;
+}
+
+/* Timer display */
+h1[style*="text-align: center"] {
+    font-size: 4rem;
+    font-family: monospace;
+    color: #1E88E5;
+    margin: 1.5rem 0;
+}
+
+/* Buttons */
+.stButton > button {
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s;
+    background-color: #1E88E5 !important;
+    color: white !important;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: #1565C0 !important;
+    color: white !important;
+}
+
+/* Metrics */
+[data-testid="stMetric"] {
+    background-color: #0080ff;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    color: white !important;
+}
+
+[data-testid="stMetricLabel"] {
+    font-weight: 600;
+    color: white !important;
+}
+
+[data-testid="stMetricValue"] {
+    font-size: 1.8rem !important;
+    font-weight: 700 !important;
+    color: white !important;
+}
+
+[data-testid="stMetricDelta"] {
+    color: white !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 50px;
+    white-space: pre-wrap;
+    background-color: #1E88E5 !important;
+    color: white !important;
+    border-radius: 6px 6px 0 0;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: #0D47A1 !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+/* Hiding sidebar */
+[data-testid="stSidebar"] {
+    display: none;
+}
+
+/* Data display */
+.stSubheader {
+    color: #333333; /* Pastikan teks hitam */
+    background-color: #ffffff;
+    padding: 0.5rem;
+    border-radius: 5px;
+    font-weight: 500;
+}
+
+/* Progress bar */
+.stProgress > div > div {
+    background-color: #1E88E5;
+}

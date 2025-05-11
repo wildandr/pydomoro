@@ -1,0 +1,399 @@
+import streamlit as st
+import sys
+import os
+import time
+import threading
+from datetime import datetime, timedelta
+import pandas as pd
+
+# Add the current directory to the path so modules can be imported
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from utils.timer import Timer
+from database.db_manager import DBManager
+from utils.visualization import create_daily_distribution_chart, create_activity_pie_chart, create_period_comparison_chart
+
+st.set_page_config(
+    page_title="PyDomoro - Pomodoro Timer",
+    page_icon="⏱️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Apply custom CSS
+with open(os.path.join(os.path.dirname(__file__), "styles/style.css")) as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# Initialize session state variables
+if 'timer' not in st.session_state:
+    st.session_state.timer = Timer()
+if 'mode' not in st.session_state:
+    st.session_state.mode = 'timer'
+if 'activity_type' not in st.session_state:
+    st.session_state.activity_type = 'Work'
+if 'duration_minutes' not in st.session_state:
+    st.session_state.duration_minutes = 25
+if 'session_id' not in st.session_state:
+    st.session_state.session_id = None
+if 'timer_completed' not in st.session_state:
+    st.session_state.timer_completed = False
+
+# Create tabs for navigation
+tab1, tab2 = st.tabs(["🏠 Dashboard", "🎯 Focus Timer"])
+
+# Functions for notification
+def play_notification():
+    """Play notification sound when timer completes"""
+    try:
+        sound_file = os.path.join(os.path.dirname(__file__), "assets/notification.mp3")
+        # Try to use playsound if available
+        try:
+            from playsound import playsound
+            threading.Thread(target=playsound, args=(sound_file,), daemon=True).start()
+        except ImportError:
+            # Fallback if playsound is not installed
+            threading.Thread(target=lambda: print("Notification sound played"), daemon=True).start()
+    except Exception as e:
+        st.error(f"Could not play notification sound: {str(e)}")
+
+def timer_callback():
+    """Callback function when timer completes"""
+    play_notification()
+    st.session_state.timer_completed = True
+
+# Database manager instance
+db = DBManager()
+
+# Tab 1: Dashboard (Home)
+with tab1:
+    st.title("🏠 Focus Dashboard")
+    
+    # Period selection
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        period_type = st.radio(
+            "Select time period:",
+            options=["day", "week", "month", "year"],
+            horizontal=True
+        )
+    
+    # Determine date range based on period type
+    today = datetime.now()
+    if period_type == "day":
+        period_label = today.strftime("%A, %B %d, %Y")
+    elif period_type == "week":
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        period_label = f"{start_of_week.strftime('%b %d')} - {end_of_week.strftime('%b %d, %Y')}"
+    elif period_type == "month":
+        period_label = today.strftime("%B %Y")
+    else:  # year
+        period_label = today.strftime("%Y")
+    
+    # Display current period
+    st.subheader(f"Showing data for: {period_label}")
+    
+    # Get focus statistics
+    total_focus_time = db.get_total_focus_time(period_type)
+    activity_distribution = db.get_activity_distribution(period_type)
+    
+    # Display statistics
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(
+            "Total Focus Time",
+            f"{total_focus_time:.1f} min",
+            delta=None
+        )
+    
+    with col2:
+        # Average focus time per day
+        if period_type == "day":
+            avg_focus = total_focus_time
+            st.metric("Average Focus/Day", f"{avg_focus:.1f} min")
+        elif period_type == "week":
+            avg_focus = total_focus_time / 7
+            st.metric("Average Focus/Day", f"{avg_focus:.1f} min")
+        elif period_type == "month":
+            # Approximate days in month
+            days_in_month = 30  # Simplified
+            avg_focus = total_focus_time / days_in_month
+            st.metric("Average Focus/Day", f"{avg_focus:.1f} min")
+        else:  # year
+            avg_focus = total_focus_time / 365
+            st.metric("Average Focus/Day", f"{avg_focus:.1f} min")
+    
+    with col3:
+        # Most focused activity
+        if activity_distribution:
+            most_focused = max(activity_distribution.items(), key=lambda x: x[1]) if activity_distribution else (None, 0)
+            st.metric(
+                "Most Focused Activity",
+                most_focused[0] if most_focused[0] else "None",
+                f"{most_focused[1]:.1f} min" if most_focused[1] else "0 min"
+            )
+        else:
+            st.metric("Most Focused Activity", "None", "0 min")
+    
+    # Visualizations section
+    st.header("📊 Visualizations")
+    
+    # Create tabs for different visualizations
+    viz_tab1, viz_tab2, viz_tab3 = st.tabs(["Time Distribution", "Activity Breakdown", "Trends"])
+    
+    # Tab 1: Time Distribution
+    with viz_tab1:
+        st.subheader(f"Focus Time Distribution ({period_type.capitalize()})")
+        sessions = db.get_sessions_by_period(period_type)
+        
+        if sessions:
+            fig = create_daily_distribution_chart(sessions)
+            if fig:
+                st.pyplot(fig)
+            else:
+                st.info("Not enough data to generate time distribution chart.")
+        else:
+            st.info("No focus sessions recorded for this period.")
+    
+    # Tab 2: Activity Breakdown
+    with viz_tab2:
+        st.subheader(f"Activity Distribution ({period_type.capitalize()})")
+        
+        if activity_distribution:
+            fig = create_activity_pie_chart(activity_distribution)
+            if fig:
+                st.pyplot(fig)
+            
+            # Show the data in a table
+            st.subheader("Activity Details")
+            activity_data = []
+            for activity, minutes in activity_distribution.items():
+                activity_data.append({
+                    "Activity": activity,
+                    "Time (min)": round(minutes, 1),
+                    "Percentage": round(minutes / total_focus_time * 100, 1) if total_focus_time > 0 else 0
+                })
+            
+            activity_df = pd.DataFrame(activity_data)
+            st.dataframe(activity_df, use_container_width=True)
+        else:
+            st.info("No activities recorded for this period.")
+    
+    # Tab 3: Trends
+    with viz_tab3:
+        st.subheader(f"Focus Time Trends")
+        
+        # Number of periods to compare depends on the selected period type
+        if period_type == "day":
+            periods = 7  # Last 7 days
+        elif period_type == "week":
+            periods = 4  # Last 4 weeks
+        elif period_type == "month":
+            periods = 6  # Last 6 months
+        else:
+            periods = 3  # Last 3 years
+        
+        fig = create_period_comparison_chart(db, period_type, periods)
+        if fig:
+            st.pyplot(fig)
+        else:
+            st.info(f"Not enough data to show trends for {periods} {period_type}s.")
+
+# Tab 2: Focus Timer
+with tab2:
+    st.title("🎯 Focus Time")
+    
+    # Activity type selection
+    activity_types = ["Work", "Study", "Class"]
+    selected_activity = st.selectbox(
+        "Select activity type:",
+        options=activity_types,
+        index=activity_types.index(st.session_state.activity_type) if st.session_state.activity_type in activity_types else 0
+    )
+    st.session_state.activity_type = selected_activity
+    
+    # Mode selection: Timer or Stopwatch
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⏱️ Timer", 
+                    use_container_width=True, 
+                    type="primary" if st.session_state.mode == "timer" else "secondary"):
+            st.session_state.mode = "timer"
+            st.rerun()
+            
+    with col2:
+        if st.button("⏲️ Stopwatch", 
+                    use_container_width=True, 
+                    type="primary" if st.session_state.mode == "stopwatch" else "secondary"):
+            st.session_state.mode = "stopwatch"
+            st.rerun()
+    
+    st.divider()
+    
+    # Timer mode
+    if st.session_state.mode == "timer":
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            duration = st.slider(
+                "Duration (minutes):",
+                min_value=1,
+                max_value=120,
+                value=st.session_state.duration_minutes,
+                step=1
+            )
+            st.session_state.duration_minutes = duration
+        
+        # Timer display
+        time_display = st.empty()
+        
+        # Timer controls
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            start_button = st.button(
+                "▶️ Start", 
+                key="timer_start",
+                use_container_width=True,
+                disabled=st.session_state.timer.running and not st.session_state.timer.paused
+            )
+        
+        with col2:
+            pause_resume_button = st.button(
+                "⏸️ Pause" if st.session_state.timer.running and not st.session_state.timer.paused else "⏯️ Resume",
+                key="timer_pause",
+                use_container_width=True,
+                disabled=not st.session_state.timer.running
+            )
+        
+        with col3:
+            stop_button = st.button(
+                "⏹️ Stop",
+                key="timer_stop",
+                use_container_width=True,
+                disabled=not st.session_state.timer.running
+            )
+        
+        # Timer notification
+        if st.session_state.timer_completed:
+            st.success("Timer completed! Time to take a break.")
+            if st.button("Dismiss"):
+                st.session_state.timer_completed = False
+                st.rerun()
+
+        # Handle button actions
+        if start_button:
+            # Store in database
+            st.session_state.session_id = db.start_session(st.session_state.activity_type)
+            # Start timer with callback for notification
+            st.session_state.timer.start(
+                duration_minutes=st.session_state.duration_minutes,
+                callback=timer_callback
+            )
+            st.rerun()
+            
+        if pause_resume_button:
+            if st.session_state.timer.paused:
+                st.session_state.timer.resume()
+            else:
+                st.session_state.timer.pause()
+            st.rerun()
+            
+        if stop_button:
+            elapsed_time = st.session_state.timer.stop()
+            if st.session_state.session_id:
+                db.end_session(st.session_state.session_id)
+                st.session_state.session_id = None
+            st.session_state.timer = Timer()  # Reset timer
+            st.rerun()
+        
+        # Display time
+        if st.session_state.timer.running:
+            while st.session_state.timer.running:
+                # Display remaining time for timer mode
+                remaining_seconds = st.session_state.timer.get_remaining_time()
+                formatted_time = st.session_state.timer.get_formatted_time(remaining_seconds)
+                time_display.markdown(f"<h1 style='text-align: center;'>{formatted_time}</h1>", unsafe_allow_html=True)
+                
+                # Display progress bar
+                progress = 1 - (remaining_seconds / (st.session_state.duration_minutes * 60))
+                st.progress(min(1.0, max(0.0, progress)))
+                
+                # Check if timer completed
+                if st.session_state.timer_completed:
+                    break
+                    
+                time.sleep(0.1)
+        else:
+            # Display the duration when not running
+            formatted_time = st.session_state.timer.get_formatted_time(st.session_state.duration_minutes * 60)
+            time_display.markdown(f"<h1 style='text-align: center;'>{formatted_time}</h1>", unsafe_allow_html=True)
+            st.progress(0.0)
+    
+    # Stopwatch mode
+    else:
+        # Stopwatch display
+        time_display = st.empty()
+        
+        # Stopwatch controls
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            start_button = st.button(
+                "▶️ Start", 
+                key="stopwatch_start",
+                use_container_width=True,
+                disabled=st.session_state.timer.running and not st.session_state.timer.paused
+            )
+        
+        with col2:
+            pause_resume_button = st.button(
+                "⏸️ Pause" if st.session_state.timer.running and not st.session_state.timer.paused else "⏯️ Resume",
+                key="stopwatch_pause",
+                use_container_width=True,
+                disabled=not st.session_state.timer.running
+            )
+        
+        with col3:
+            stop_button = st.button(
+                "⏹️ Stop",
+                key="stopwatch_stop",
+                use_container_width=True,
+                disabled=not st.session_state.timer.running
+            )
+        
+        # Handle button actions
+        if start_button:
+            # Store in database
+            st.session_state.session_id = db.start_session(st.session_state.activity_type)
+            # Start timer (stopwatch mode, no duration)
+            st.session_state.timer.start()
+            st.rerun()
+            
+        if pause_resume_button:
+            if st.session_state.timer.paused:
+                st.session_state.timer.resume()
+            else:
+                st.session_state.timer.pause()
+            st.rerun()
+            
+        if stop_button:
+            elapsed_time = st.session_state.timer.stop()
+            if st.session_state.session_id:
+                db.end_session(st.session_state.session_id)
+                st.session_state.session_id = None
+            st.session_state.timer = Timer()  # Reset timer
+            st.rerun()
+        
+        # Display time
+        if st.session_state.timer.running:
+            while st.session_state.timer.running:
+                # Display elapsed time for stopwatch mode
+                elapsed_seconds = st.session_state.timer.get_elapsed_time()
+                formatted_time = st.session_state.timer.get_formatted_time(elapsed_seconds)
+                time_display.markdown(f"<h1 style='text-align: center;'>{formatted_time}</h1>", unsafe_allow_html=True)
+                time.sleep(0.1)
+        else:
+            # Display 00:00:00 when not running
+            time_display.markdown("<h1 style='text-align: center;'>00:00:00</h1>", unsafe_allow_html=True)
