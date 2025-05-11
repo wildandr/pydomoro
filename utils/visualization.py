@@ -81,45 +81,38 @@ def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
     if not activity_distribution:
         return None
     
-    # If focus_nonfocus is provided, create two separate pie charts vertically
-    if focus_nonfocus and focus_nonfocus[0] + focus_nonfocus[1] > 0:
-        # Create a figure with 2 rows and 1 column
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(200/100, 400/100))
-        
-        # Top pie chart: Activity distribution
-        activities = list(activity_distribution.keys())
-        minutes = list(activity_distribution.values())
-        
-        ax1.pie(minutes, labels=activities, autopct='%1.1f%%', startangle=90)
-        ax1.axis('equal')
-        ax1.set_title('Focus Time by Activity', fontsize=7)  # Reduced title size by 50%
-        
-        # Bottom pie chart: Focus vs Non-focus
+    # Create a figure with 1 row and 2 columns
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(400/100, 200/100))
+    
+    # Left pie chart: Activity distribution
+    activities = list(activity_distribution.keys())
+    minutes = list(activity_distribution.values())
+    
+    ax1.pie(minutes, labels=activities, autopct='%1.1f%%', startangle=90)
+    ax1.axis('equal')
+    ax1.set_title('Focus Time by Activity')
+    
+    # Right pie chart: Focus vs Non-focus
+    if focus_nonfocus:
         focus_minutes, nonfocus_minutes = focus_nonfocus
         total_minutes = focus_minutes + nonfocus_minutes
+        
+        # Only show the second pie chart if we have valid data
+        if total_minutes > 0:
+            focus_pct = (focus_minutes / total_minutes) * 100
+            nonfocus_pct = (nonfocus_minutes / total_minutes) * 100
             
-        labels = ['Focus', 'Non-Focus']
-        sizes = [focus_minutes, nonfocus_minutes]
-        
-        ax2.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, 
-                colors=['#1E88E5', '#e3e3e3'])
-        ax2.axis('equal')
-        ax2.set_title('Today\'s Time Usage', fontsize=7)  # Reduced title size by 50%
-        
-        # Add text with actual minutes
-        ax2.text(0, -1.2, f'Focus: {int(focus_minutes)} min | Non-Focus: {int(nonfocus_minutes)} min', 
-                horizontalalignment='center', fontsize=9)
-    else:
-        # Just create a single pie chart for activity distribution
-        fig, ax1 = plt.subplots(figsize=(200/100, 200/100))
-        
-        # Activity distribution pie chart
-        activities = list(activity_distribution.keys())
-        minutes = list(activity_distribution.values())
-        
-        ax1.pie(minutes, labels=activities, autopct='%1.1f%%', startangle=90)
-        ax1.axis('equal')
-        ax1.set_title('Focus Time by Activity')
+            labels = ['Focus', 'Non-Focus']
+            sizes = [focus_minutes, nonfocus_minutes]
+            
+            ax2.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, 
+                    colors=['#1E88E5', '#e3e3e3'])
+            ax2.axis('equal')
+            ax2.set_title('Today\'s Time Usage')
+            
+            # Add text with actual minutes
+            ax2.text(0, -1.2, f'Focus: {int(focus_minutes)} min | Non-Focus: {int(nonfocus_minutes)} min', 
+                     horizontalalignment='center', fontsize=9)
     
     plt.tight_layout()
     return fig
