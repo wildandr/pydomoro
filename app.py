@@ -175,32 +175,49 @@ with tab1:
     
     # Restore Button
     with col2:
+        st.subheader("Restore Database")
+        
+        # File uploader for custom backup files
+        uploaded_file = st.file_uploader("Upload a backup file", type=["db"])
+        
+        # Option for using existing backups
+        st.write("Or select from existing backups:")
+        
         # Get list of backup files
         backup_files = db.list_backup_files()
         
-        if backup_files:
+        if backup_files or uploaded_file:
             # Extract filenames for display
-            backup_filenames = [os.path.basename(path) for path in backup_files]
-            
-            # Create a selectbox for choosing backup files
-            selected_backup = st.selectbox(
-                "Select a backup to restore",
-                options=backup_filenames,
-                format_func=lambda x: x.replace("pydomoro_backup_", "").replace(".db", " ")
-            )
+            if backup_files:
+                backup_filenames = [os.path.basename(path) for path in backup_files]
+                
+                # Create a selectbox for choosing backup files
+                selected_backup = st.selectbox(
+                    "Select a backup to restore",
+                    options=backup_filenames,
+                    format_func=lambda x: x.replace("pydomoro_backup_", "").replace(".db", " ")
+                )
             
             # Get the full path of the selected backup
-            selected_backup_path = next((path for path in backup_files if os.path.basename(path) == selected_backup), None)
+            selected_backup_path = next((path for path in backup_files if os.path.basename(path) == selected_backup), None) if backup_files else None
             
             if st.button("🔄 Restore Database", use_container_width=True):
-                if selected_backup_path:
+                if uploaded_file:
+                    # Save the uploaded file first
+                    uploaded_path = db.save_uploaded_backup(uploaded_file)
+                    success, message = db.restore_database(uploaded_path)
+                    if success:
+                        st.success(f"{message}")
+                    else:
+                        st.error(f"{message}")
+                elif selected_backup_path:
                     success, message = db.restore_database(selected_backup_path)
                     if success:
                         st.success(f"{message}")
                     else:
                         st.error(f"{message}")
                 else:
-                    st.error("No backup file selected")
+                    st.error("No backup file selected or uploaded")
         else:
             st.info("No backup files available for restore")
     

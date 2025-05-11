@@ -170,38 +170,51 @@ class DBManager:
         
         return backup_path
 
-    def restore_database(self, backup_file_path):
+    def list_backup_files(self):
         """
-        Restores the database from a backup file
+        List all available backup files in the data directory
+        Returns a list of paths to backup files, sorted newest first
+        """
+        data_dir = os.path.dirname(self.db_path)
+        backup_files = []
         
-        Parameters:
-        - backup_file_path: Path to the backup file
+        for filename in os.listdir(data_dir):
+            if filename.startswith("pydomoro_backup_") and filename.endswith(".db"):
+                backup_path = os.path.join(data_dir, filename)
+                backup_files.append(backup_path)
         
-        Returns:
-        - bool: True if successful, False otherwise
+        # Sort by modification time, newest first
+        backup_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+        return backup_files
+
+    def restore_database(self, backup_path):
+        """
+        Restore the database from a backup file
+        Returns a tuple (success, message)
         """
         import shutil
         
-        if not os.path.exists(backup_file_path):
-            return False, "Backup file not found"
-            
         try:
+            # Verify the backup file exists
+            if not os.path.exists(backup_path):
+                return (False, f"Backup file not found: {backup_path}")
+                
             # Close the current connection
             self.conn.close()
             
             # Create a backup of the current database before restoring
-            current_time = datetime.now(WIB).strftime("%Y%m%d_%H%M%S")
-            current_backup = os.path.join(os.path.dirname(self.db_path), f"pre_restore_backup_{current_time}.db")
+            current_backup = self.db_path + ".before_restore"
             shutil.copy2(self.db_path, current_backup)
             
-            # Restore from the backup file
-            shutil.copy2(backup_file_path, self.db_path)
+            # Restore the backup file
+            shutil.copy2(backup_path, self.db_path)
             
             # Reconnect to the database
             self.conn = sqlite3.connect(self.db_path)
             self.cursor = self.conn.cursor()
             
-            return True, "Database restored successfully"
+            return (True, f"Database restored successfully from {os.path.basename(backup_path)}")
+            
         except Exception as e:
             # Try to reconnect to the original database
             try:
@@ -209,26 +222,28 @@ class DBManager:
                 self.cursor = self.conn.cursor()
             except:
                 pass
-            return False, f"Error restoring database: {str(e)}"
-
-    def list_backup_files(self):
-        """
-        Lists all database backup files in the data directory
-        
-        Returns:
-        - list: List of backup file paths
-        """
-        data_dir = os.path.dirname(self.db_path)
-        backup_files = []
-        
-        for file in os.listdir(data_dir):
-            if file.startswith("pydomoro_backup_") and file.endswith(".db"):
-                backup_files.append(os.path.join(data_dir, file))
                 
-        # Sort by modification time (newest first)
-        backup_files.sort(key=os.path.getmtime, reverse=True)
+            return (False, f"Failed to restore database: {str(e)}")
+            
+    def save_uploaded_backup(self, uploaded_file):
+        """
+        Save an uploaded backup file and return its path
+        """
+        import shutil
         
-        return backup_files
+        # Generate a timestamp for the backup filename
+        timestamp = datetime.now(WIB).strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"pydomoro_backup_{timestamp}_uploaded.db"
+        
+        # Save the uploaded file
+        data_dir = os.path.dirname(self.db_path)
+        backup_path = os.path.join(data_dir, backup_filename)
+        
+        # Write the uploaded file to disk
+        with open(backup_path, "wb") as f:
+            f.write(uploaded_file.read())
+            
+        return backup_path
 
     def __del__(self):
         if hasattr(self, 'conn') and self.conn:

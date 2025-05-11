@@ -90,7 +90,7 @@ def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
     
     ax1.pie(minutes, labels=activities, autopct='%1.1f%%', startangle=90)
     ax1.axis('equal')
-    ax1.set_title('Focus Time by Activity')
+    ax1.set_title('Focus Time by Activity', fontsize=4)  # Reduced to 50%
     
     # Right pie chart: Focus vs Non-focus
     if focus_nonfocus:
@@ -108,7 +108,7 @@ def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
             ax2.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, 
                     colors=['#1E88E5', '#e3e3e3'])
             ax2.axis('equal')
-            ax2.set_title('Today\'s Time Usage')
+            ax2.set_title('Today\'s Time Usage', fontsize=4)  # Reduced to 50%
             
             # Add text with actual minutes
             ax2.text(0, -1.2, f'Focus: {int(focus_minutes)} min | non: {int(nonfocus_minutes)} min', 
