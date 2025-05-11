@@ -200,7 +200,9 @@ with tab1:
             
             # Column 1: Pie Chart
             with col1:
-                fig = create_activity_pie_chart(activity_distribution)
+                # Get focus vs non-focus data for today
+                focus_nonfocus = db.get_focus_vs_nonfocus_time() if period_type == "day" else None
+                fig = create_activity_pie_chart(activity_distribution, focus_nonfocus)
                 if fig:
                     st.pyplot(fig)
             

@@ -70,22 +70,51 @@ def create_daily_distribution_chart(sessions_data):
     
     return fig
 
-def create_activity_pie_chart(activity_distribution):
+def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
     """
-    Create a pie chart showing distribution of activities
+    Create pie charts showing distribution of activities and focus vs non-focus time
+    
+    Parameters:
+    - activity_distribution: Dictionary of activity types and minutes
+    - focus_nonfocus: Tuple of (focus_minutes, nonfocus_minutes)
     """
     if not activity_distribution:
         return None
-        
-    # Using pixels instead of inches (200px)
-    fig, ax = plt.subplots(figsize=(200/100, 200/100))  # 200px converted to inches (dpi=100)
+    
+    # Create a figure with 1 row and 2 columns
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(400/100, 200/100))
+    
+    # Left pie chart: Activity distribution
     activities = list(activity_distribution.keys())
     minutes = list(activity_distribution.values())
     
-    ax.pie(minutes, labels=activities, autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')
-    ax.set_title('Focus Time by Activity')
+    ax1.pie(minutes, labels=activities, autopct='%1.1f%%', startangle=90)
+    ax1.axis('equal')
+    ax1.set_title('Focus Time by Activity')
     
+    # Right pie chart: Focus vs Non-focus
+    if focus_nonfocus:
+        focus_minutes, nonfocus_minutes = focus_nonfocus
+        total_minutes = focus_minutes + nonfocus_minutes
+        
+        # Only show the second pie chart if we have valid data
+        if total_minutes > 0:
+            focus_pct = (focus_minutes / total_minutes) * 100
+            nonfocus_pct = (nonfocus_minutes / total_minutes) * 100
+            
+            labels = ['Focus', 'Non-Focus']
+            sizes = [focus_minutes, nonfocus_minutes]
+            
+            ax2.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, 
+                    colors=['#1E88E5', '#e3e3e3'])
+            ax2.axis('equal')
+            ax2.set_title('Today\'s Time Usage')
+            
+            # Add text with actual minutes
+            ax2.text(0, -1.2, f'Focus: {int(focus_minutes)} min | Non-Focus: {int(nonfocus_minutes)} min', 
+                     horizontalalignment='center', fontsize=9)
+    
+    plt.tight_layout()
     return fig
 
 def create_period_comparison_chart(db_manager, period_type, periods=7):
