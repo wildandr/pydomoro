@@ -211,6 +211,88 @@ with tab1:
             st.pyplot(fig)
         else:
             st.info(f"Not enough data to show trends for {periods} {period_type}s.")
+            
+            
+            # Add backup button in a new section below the statistics
+    st.divider()
+    
+    # Backup Database Section
+    st.subheader("💾 Database Management")
+    
+    # Organize buttons in two columns
+    col1, col2 = st.columns(2)
+    
+    # Backup Button
+    with col1:
+        if st.button("📥 Backup Database", use_container_width=True):
+            try:
+                backup_path = db.backup_database()
+                
+                # Read the backup file for download
+                with open(backup_path, "rb") as file:
+                    backup_data = file.read()
+                
+                # Create a download button for the backup file
+                filename = os.path.basename(backup_path)
+                st.download_button(
+                    label="Download Backup",
+                    data=backup_data,
+                    file_name=filename,
+                    mime="application/octet-stream",
+                    key="download_backup"
+                )
+                
+                st.success(f"Database backup created successfully! Click the download button to save it.")
+            except Exception as e:
+                st.error(f"Failed to create backup: {str(e)}")
+    
+    # Restore Button
+    with col2:
+        st.subheader("Restore Database")
+        
+        # File uploader for custom backup files
+        uploaded_file = st.file_uploader("Upload a backup file", type=["db"])
+        
+        # Option for using existing backups
+        st.write("Or select from existing backups:")
+        
+        # Get list of backup files
+        backup_files = db.list_backup_files()
+        
+        if backup_files or uploaded_file:
+            # Extract filenames for display
+            if backup_files:
+                backup_filenames = [os.path.basename(path) for path in backup_files]
+                
+                # Create a selectbox for choosing backup files
+                selected_backup = st.selectbox(
+                    "Select a backup to restore",
+                    options=backup_filenames,
+                    format_func=lambda x: x.replace("pydomoro_backup_", "").replace(".db", " ")
+                )
+            
+            # Get the full path of the selected backup
+            selected_backup_path = next((path for path in backup_files if os.path.basename(path) == selected_backup), None) if backup_files else None
+            
+            if st.button("🔄 Restore Database", use_container_width=True):
+                if uploaded_file:
+                    # Save the uploaded file first
+                    uploaded_path = db.save_uploaded_backup(uploaded_file)
+                    success, message = db.restore_database(uploaded_path)
+                    if success:
+                        st.success(f"{message}")
+                    else:
+                        st.error(f"{message}")
+                elif selected_backup_path:
+                    success, message = db.restore_database(selected_backup_path)
+                    if success:
+                        st.success(f"{message}")
+                    else:
+                        st.error(f"{message}")
+                else:
+                    st.error("No backup file selected or uploaded")
+        else:
+            st.info("No backup files available for restore")
 
 # Tab 2: Focus Timer
 with tab2:
@@ -240,6 +322,8 @@ with tab2:
                     type="primary" if st.session_state.mode == "stopwatch" else "secondary"):
             st.session_state.mode = "stopwatch"
             st.rerun()
+            
+    
     
     st.divider()
     
@@ -410,84 +494,4 @@ with tab2:
             # Display 00:00:00 when not running
             time_display.markdown("<h1 style='text-align: center;'>00:00:00</h1>", unsafe_allow_html=True)
             
-            
-        # Add backup button in a new section below the statistics
-    st.divider()
-    
-    # Backup Database Section
-    st.subheader("💾 Database Management")
-    
-    # Organize buttons in two columns
-    col1, col2 = st.columns(2)
-    
-    # Backup Button
-    with col1:
-        if st.button("📥 Backup Database", use_container_width=True):
-            try:
-                backup_path = db.backup_database()
-                
-                # Read the backup file for download
-                with open(backup_path, "rb") as file:
-                    backup_data = file.read()
-                
-                # Create a download button for the backup file
-                filename = os.path.basename(backup_path)
-                st.download_button(
-                    label="Download Backup",
-                    data=backup_data,
-                    file_name=filename,
-                    mime="application/octet-stream",
-                    key="download_backup"
-                )
-                
-                st.success(f"Database backup created successfully! Click the download button to save it.")
-            except Exception as e:
-                st.error(f"Failed to create backup: {str(e)}")
-    
-    # Restore Button
-    with col2:
-        st.subheader("Restore Database")
         
-        # File uploader for custom backup files
-        uploaded_file = st.file_uploader("Upload a backup file", type=["db"])
-        
-        # Option for using existing backups
-        st.write("Or select from existing backups:")
-        
-        # Get list of backup files
-        backup_files = db.list_backup_files()
-        
-        if backup_files or uploaded_file:
-            # Extract filenames for display
-            if backup_files:
-                backup_filenames = [os.path.basename(path) for path in backup_files]
-                
-                # Create a selectbox for choosing backup files
-                selected_backup = st.selectbox(
-                    "Select a backup to restore",
-                    options=backup_filenames,
-                    format_func=lambda x: x.replace("pydomoro_backup_", "").replace(".db", " ")
-                )
-            
-            # Get the full path of the selected backup
-            selected_backup_path = next((path for path in backup_files if os.path.basename(path) == selected_backup), None) if backup_files else None
-            
-            if st.button("🔄 Restore Database", use_container_width=True):
-                if uploaded_file:
-                    # Save the uploaded file first
-                    uploaded_path = db.save_uploaded_backup(uploaded_file)
-                    success, message = db.restore_database(uploaded_path)
-                    if success:
-                        st.success(f"{message}")
-                    else:
-                        st.error(f"{message}")
-                elif selected_backup_path:
-                    success, message = db.restore_database(selected_backup_path)
-                    if success:
-                        st.success(f"{message}")
-                    else:
-                        st.error(f"{message}")
-                else:
-                    st.error("No backup file selected or uploaded")
-        else:
-            st.info("No backup files available for restore")
