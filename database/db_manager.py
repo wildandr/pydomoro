@@ -124,6 +124,26 @@ class DBManager:
                 distribution[activity_type] = duration
         return distribution
 
+    def get_focus_vs_nonfocus_time(self):
+        """
+        Calculate the focus time vs. non-focus time for today (from 00:00 to current time)
+        Returns a tuple of (focus_minutes, nonfocus_minutes)
+        """
+        # Get today's date range
+        today = datetime.now(WIB)
+        start_date = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=WIB)
+        
+        # Calculate total elapsed minutes since midnight
+        elapsed_minutes = (today - start_date).total_seconds() / 60
+        
+        # Get focus time for today
+        focus_minutes = self.get_total_focus_time('day', today)
+        
+        # Calculate non-focus time
+        nonfocus_minutes = max(0, elapsed_minutes - focus_minutes)
+        
+        return (focus_minutes, nonfocus_minutes)
+
     def backup_database(self):
         """
         Creates a backup of the database with timestamp.
