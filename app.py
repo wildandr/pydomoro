@@ -146,7 +146,10 @@ with tab1:
     # Backup Database Section
     st.subheader("💾 Database Management")
     
-    col1, col2 = st.columns([1, 3])
+    # Organize buttons in two columns
+    col1, col2 = st.columns(2)
+    
+    # Backup Button
     with col1:
         if st.button("📥 Backup Database", use_container_width=True):
             try:
@@ -169,6 +172,37 @@ with tab1:
                 st.success(f"Database backup created successfully! Click the download button to save it.")
             except Exception as e:
                 st.error(f"Failed to create backup: {str(e)}")
+    
+    # Restore Button
+    with col2:
+        # Get list of backup files
+        backup_files = db.list_backup_files()
+        
+        if backup_files:
+            # Extract filenames for display
+            backup_filenames = [os.path.basename(path) for path in backup_files]
+            
+            # Create a selectbox for choosing backup files
+            selected_backup = st.selectbox(
+                "Select a backup to restore",
+                options=backup_filenames,
+                format_func=lambda x: x.replace("pydomoro_backup_", "").replace(".db", " ")
+            )
+            
+            # Get the full path of the selected backup
+            selected_backup_path = next((path for path in backup_files if os.path.basename(path) == selected_backup), None)
+            
+            if st.button("🔄 Restore Database", use_container_width=True):
+                if selected_backup_path:
+                    success, message = db.restore_database(selected_backup_path)
+                    if success:
+                        st.success(f"{message}")
+                    else:
+                        st.error(f"{message}")
+                else:
+                    st.error("No backup file selected")
+        else:
+            st.info("No backup files available for restore")
     
     # Visualizations section
     st.header("📊 Visualizations")

@@ -119,7 +119,7 @@ def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
         
         ax1.pie(minutes, labels=activities, autopct='%1.1f%%', startangle=90)
         ax1.axis('equal')
-        ax1.set_title('Focus Time by Activity', fontsize=7)  # Reduced title size by 50%
+        ax1.set_title('Focus Time by Activity')
     
     plt.tight_layout()
     return fig
