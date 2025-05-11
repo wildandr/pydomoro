@@ -21,9 +21,9 @@ build/
 .env
 .env.local
 
-# Database
-*.sqlite3
-*.db
+# Keep database files - commented out to ensure database is shared
+# *.sqlite3
+# *.db
 
 # IDE specific files
 .idea/

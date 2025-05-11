@@ -5,6 +5,10 @@ import time
 import threading
 from datetime import datetime, timedelta
 import pandas as pd
+import pytz
+
+# Define Indonesian Western Time timezone
+WIB = pytz.timezone('Asia/Jakarta')
 
 # Add the current directory to the path so modules can be imported
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -78,7 +82,7 @@ with tab1:
         )
     
     # Determine date range based on period type
-    today = datetime.now()
+    today = datetime.now(WIB)
     if period_type == "day":
         period_label = today.strftime("%A, %B %d, %Y")
     elif period_type == "week":
@@ -135,6 +139,36 @@ with tab1:
             )
         else:
             st.metric("Most Focused Activity", "None", "0 min")
+    
+    # Add backup button in a new section below the statistics
+    st.divider()
+    
+    # Backup Database Section
+    st.subheader("💾 Database Management")
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("📥 Backup Database", use_container_width=True):
+            try:
+                backup_path = db.backup_database()
+                
+                # Read the backup file for download
+                with open(backup_path, "rb") as file:
+                    backup_data = file.read()
+                
+                # Create a download button for the backup file
+                filename = os.path.basename(backup_path)
+                st.download_button(
+                    label="Download Backup",
+                    data=backup_data,
+                    file_name=filename,
+                    mime="application/octet-stream",
+                    key="download_backup"
+                )
+                
+                st.success(f"Database backup created successfully! Click the download button to save it.")
+            except Exception as e:
+                st.error(f"Failed to create backup: {str(e)}")
     
     # Visualizations section
     st.header("📊 Visualizations")

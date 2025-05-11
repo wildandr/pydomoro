@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from datetime import datetime, timedelta
 import numpy as np
+import pytz
+
+# Define Indonesian Western Time timezone
+WIB = pytz.timezone('Asia/Jakarta')
 
 def create_daily_distribution_chart(sessions_data):
     """
@@ -88,7 +92,7 @@ def create_period_comparison_chart(db_manager, period_type, periods=7):
     """
     Create a chart comparing focus time across multiple periods
     """
-    today = datetime.now()
+    today = datetime.now(WIB)
     
     if period_type == 'day':
         labels = [(today - timedelta(days=i)).strftime('%a %d') for i in range(periods-1, -1, -1)]

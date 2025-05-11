@@ -1,6 +1,10 @@
 import time
 import threading
 from datetime import datetime, timedelta
+import pytz
+
+# Define Indonesian Western Time timezone
+WIB = pytz.timezone('Asia/Jakarta')
 
 class Timer:
     def __init__(self):
@@ -20,7 +24,7 @@ class Timer:
             
         self.running = True
         self.paused = False
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(WIB)
         
         if duration_minutes:
             self.target_time = self.start_time + timedelta(minutes=duration_minutes)
@@ -35,7 +39,7 @@ class Timer:
     def _check_target(self):
         """Check if the target time has been reached"""
         while not self.stop_event.is_set():
-            if self.running and not self.paused and datetime.now() >= self.target_time:
+            if self.running and not self.paused and datetime.now(WIB) >= self.target_time:
                 if self.callback:
                     self.callback()
                 break
@@ -45,19 +49,19 @@ class Timer:
         """Pause the timer"""
         if self.running and not self.paused:
             self.paused = True
-            self.elapsed_time += (datetime.now() - self.start_time).total_seconds()
+            self.elapsed_time += (datetime.now(WIB) - self.start_time).total_seconds()
     
     def resume(self):
         """Resume the timer"""
         if self.running and self.paused:
             self.paused = False
-            self.start_time = datetime.now()
+            self.start_time = datetime.now(WIB)
     
     def stop(self):
         """Stop the timer"""
         if self.running:
             if not self.paused:
-                self.elapsed_time += (datetime.now() - self.start_time).total_seconds()
+                self.elapsed_time += (datetime.now(WIB) - self.start_time).total_seconds()
             self.running = False
             self.paused = False
             
@@ -83,7 +87,7 @@ class Timer:
         if self.paused:
             return self.elapsed_time
             
-        return self.elapsed_time + (datetime.now() - self.start_time).total_seconds()
+        return self.elapsed_time + (datetime.now(WIB) - self.start_time).total_seconds()
     
     def get_remaining_time(self):
         """Get the remaining time if a target time was set"""
@@ -93,7 +97,7 @@ class Timer:
         if self.paused:
             remaining = (self.target_time - self.start_time).total_seconds() - self.elapsed_time
         else:
-            remaining = (self.target_time - datetime.now()).total_seconds()
+            remaining = (self.target_time - datetime.now(WIB)).total_seconds()
             
         return max(0, remaining)
     

@@ -1,6 +1,10 @@
 import sqlite3
 import os
 from datetime import datetime, timedelta
+import pytz
+
+# Define Indonesian Western Time timezone
+WIB = pytz.timezone('Asia/Jakarta')
 
 class DBManager:
     def __init__(self):
@@ -29,7 +33,7 @@ class DBManager:
         self.conn.commit()
 
     def start_session(self, activity_type):
-        current_time = datetime.now()
+        current_time = datetime.now(WIB)
         self.cursor.execute(
             "INSERT INTO focus_sessions (activity_type, start_time) VALUES (?, ?)",
             (activity_type, current_time)
@@ -38,7 +42,7 @@ class DBManager:
         return self.cursor.lastrowid
 
     def end_session(self, session_id, completed=True):
-        end_time = datetime.now()
+        end_time = datetime.now(WIB)
         
         # Get the start time
         self.cursor.execute("SELECT start_time FROM focus_sessions WHERE id = ?", (session_id,))
@@ -64,7 +68,7 @@ class DBManager:
         Get sessions based on period type (day, week, month, year)
         """
         if date is None:
-            date = datetime.now()
+            date = datetime.now(WIB)
             
         if period_type == 'day':
             start_date = datetime(date.year, date.month, date.day, 0, 0, 0)
@@ -119,6 +123,32 @@ class DBManager:
             else:
                 distribution[activity_type] = duration
         return distribution
+
+    def backup_database(self):
+        """
+        Creates a backup of the database with timestamp.
+        Returns the path to the backup file.
+        """
+        import shutil
+        from datetime import datetime
+        
+        # Generate a timestamp for the backup filename in WIB timezone
+        timestamp = datetime.now(WIB).strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"pydomoro_backup_{timestamp}.db"
+        
+        # Close the current connection to ensure all data is saved
+        self.conn.commit()
+        self.conn.close()
+        
+        # Create a copy of the database file
+        backup_path = os.path.join(os.path.dirname(self.db_path), backup_filename)
+        shutil.copy2(self.db_path, backup_path)
+        
+        # Reconnect to the database
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+        
+        return backup_path
 
     def __del__(self):
         if hasattr(self, 'conn') and self.conn:
