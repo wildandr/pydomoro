@@ -112,7 +112,7 @@ def create_activity_pie_chart(activity_distribution, focus_nonfocus=None):
             
             # Add text with actual minutes
             ax2.text(0, -1.2, f'Focus: {int(focus_minutes)} min | non: {int(nonfocus_minutes)} min', 
-                     horizontalalignment='center', fontsize=9)
+                     horizontalalignment='center', fontsize=4)
     
     plt.tight_layout()
     return fig
