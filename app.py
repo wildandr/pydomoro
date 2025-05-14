@@ -41,9 +41,31 @@ if 'session_id' not in st.session_state:
     st.session_state.session_id = None
 if 'timer_completed' not in st.session_state:
     st.session_state.timer_completed = False
+if 'timer_restored' not in st.session_state:
+    st.session_state.timer_restored = False
 
-# Create tabs for navigation
-tab1, tab2 = st.tabs(["🏠 Dashboard", "🎯 Focus Timer"])
+# Database manager instance
+db = DBManager()
+
+# Function to restore timer state from database
+def restore_timer_state():
+    """Restore timer state from database if available"""
+    if st.session_state.timer_restored:
+        return
+        
+    timer_state = db.get_timer_state()
+    if timer_state:
+        # Set session variables from saved state
+        st.session_state.mode = timer_state["mode"]
+        st.session_state.activity_type = timer_state["activity_type"]
+        st.session_state.duration_minutes = timer_state["duration_minutes"]
+        st.session_state.session_id = timer_state["session_id"]
+        
+        # Restore timer with callback for notification
+        st.session_state.timer.restore_from_state(timer_state, callback=timer_callback)
+        
+        # Mark as restored to avoid restoring multiple times
+        st.session_state.timer_restored = True
 
 # Functions for notification
 def play_notification():
@@ -64,9 +86,20 @@ def timer_callback():
     """Callback function when timer completes"""
     play_notification()
     st.session_state.timer_completed = True
+    
+    # End the session in database
+    if st.session_state.session_id:
+        db.end_session(st.session_state.session_id)
+        st.session_state.session_id = None
+        
+    # Clear timer state from database
+    db.clear_timer_state()
 
-# Database manager instance
-db = DBManager()
+# Create tabs for navigation
+tab1, tab2 = st.tabs(["🏠 Dashboard", "🎯 Focus Timer"])
+
+# Try to restore timer state
+restore_timer_state()
 
 # Tab 1: Dashboard (Home)
 with tab1:
@@ -380,12 +413,27 @@ with tab2:
 
         # Handle button actions
         if start_button:
+            # First check if there's already a timer state in the database
+            existing_state = db.get_timer_state()
+            if existing_state:
+                st.warning("You already have an active timer session. Please stop it first.")
+                st.rerun()
+                
             # Store in database
             st.session_state.session_id = db.start_session(st.session_state.activity_type)
             # Start timer with callback for notification
             st.session_state.timer.start(
                 duration_minutes=st.session_state.duration_minutes,
                 callback=timer_callback
+            )
+            
+            # Save timer state for persistence
+            db.save_timer_state(
+                st.session_state.timer,
+                st.session_state.mode,
+                st.session_state.activity_type,
+                st.session_state.duration_minutes,
+                st.session_state.session_id
             )
             st.rerun()
             
@@ -394,6 +442,15 @@ with tab2:
                 st.session_state.timer.resume()
             else:
                 st.session_state.timer.pause()
+                
+            # Update timer state in database
+            db.save_timer_state(
+                st.session_state.timer,
+                st.session_state.mode,
+                st.session_state.activity_type,
+                st.session_state.duration_minutes,
+                st.session_state.session_id
+            )
             st.rerun()
             
         if stop_button:
@@ -402,6 +459,9 @@ with tab2:
                 db.end_session(st.session_state.session_id)
                 st.session_state.session_id = None
             st.session_state.timer = Timer()  # Reset timer
+            
+            # Clear timer state from database
+            db.clear_timer_state()
             st.rerun()
         
         # Display time
@@ -461,10 +521,25 @@ with tab2:
         
         # Handle button actions
         if start_button:
+            # First check if there's already a timer state in the database
+            existing_state = db.get_timer_state()
+            if existing_state:
+                st.warning("You already have an active timer session. Please stop it first.")
+                st.rerun()
+                
             # Store in database
             st.session_state.session_id = db.start_session(st.session_state.activity_type)
             # Start timer (stopwatch mode, no duration)
             st.session_state.timer.start()
+            
+            # Save timer state for persistence
+            db.save_timer_state(
+                st.session_state.timer,
+                st.session_state.mode,
+                st.session_state.activity_type,
+                None,  # No duration for stopwatch
+                st.session_state.session_id
+            )
             st.rerun()
             
         if pause_resume_button:
@@ -472,6 +547,15 @@ with tab2:
                 st.session_state.timer.resume()
             else:
                 st.session_state.timer.pause()
+                
+            # Update timer state in database
+            db.save_timer_state(
+                st.session_state.timer,
+                st.session_state.mode,
+                st.session_state.activity_type,
+                None,  # No duration for stopwatch
+                st.session_state.session_id
+            )
             st.rerun()
             
         if stop_button:
@@ -480,6 +564,9 @@ with tab2:
                 db.end_session(st.session_state.session_id)
                 st.session_state.session_id = None
             st.session_state.timer = Timer()  # Reset timer
+            
+            # Clear timer state from database
+            db.clear_timer_state()
             st.rerun()
         
         # Display time
@@ -493,5 +580,4 @@ with tab2:
         else:
             # Display 00:00:00 when not running
             time_display.markdown("<h1 style='text-align: center;'>00:00:00</h1>", unsafe_allow_html=True)
-            
-        
+

@@ -30,6 +30,21 @@ class DBManager:
                 completed BOOLEAN DEFAULT FALSE
             )
         ''')
+        
+        # Create timer_state table for persistence
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS timer_state (
+                id INTEGER PRIMARY KEY,
+                mode TEXT NOT NULL,
+                activity_type TEXT NOT NULL,
+                start_time TIMESTAMP,
+                elapsed_time_seconds REAL,
+                duration_minutes REAL,
+                paused BOOLEAN DEFAULT FALSE,
+                session_id INTEGER,
+                updated_at TIMESTAMP NOT NULL
+            )
+        ''')
         self.conn.commit()
 
     def start_session(self, activity_type):
@@ -244,6 +259,65 @@ class DBManager:
             f.write(uploaded_file.read())
             
         return backup_path
+        
+    def save_timer_state(self, timer, mode, activity_type, duration_minutes, session_id):
+        """
+        Save the current timer state to the database for persistence
+        """
+        current_time = datetime.now(WIB)
+        
+        # Clear any existing timer state
+        self.cursor.execute("DELETE FROM timer_state")
+        
+        # Insert new timer state
+        self.cursor.execute(
+            """
+            INSERT INTO timer_state 
+            (mode, activity_type, start_time, elapsed_time_seconds, duration_minutes, 
+             paused, session_id, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                mode, 
+                activity_type, 
+                timer.start_time, 
+                timer.elapsed_time, 
+                duration_minutes, 
+                timer.paused, 
+                session_id, 
+                current_time
+            )
+        )
+        self.conn.commit()
+        
+    def get_timer_state(self):
+        """
+        Retrieve the saved timer state from the database
+        Returns None if no timer state is saved
+        """
+        self.cursor.execute("SELECT * FROM timer_state LIMIT 1")
+        row = self.cursor.fetchone()
+        
+        if not row:
+            return None
+            
+        return {
+            "mode": row[1],
+            "activity_type": row[2],
+            "start_time": row[3],
+            "elapsed_time_seconds": row[4],
+            "duration_minutes": row[5],
+            "paused": bool(row[6]),
+            "session_id": row[7],
+            "updated_at": row[8]
+        }
+        
+    def clear_timer_state(self):
+        """
+        Clear the saved timer state from the database
+        """
+        self.cursor.execute("DELETE FROM timer_state")
+        self.conn.commit()
 
     def __del__(self):
         if hasattr(self, 'conn') and self.conn:
